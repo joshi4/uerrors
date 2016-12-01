@@ -17,7 +17,7 @@ switch err:
   case ErrInvalidUser:
     umsg := "You are not authorized to perform this action"
   default: 
-   umsg := err.Error()
+    umsg := err.Error()
 // send umsg down in a response body along with an appropriate statsCode 
 ~~~
 
@@ -26,7 +26,56 @@ It's often hard to find all the code paths and errors an API request could creat
 
 This is where `uerrors` comes in. It offers an easy interface to attach a user-friendly message while creating the original error itself.  
 
-## Example 
+## Usage 
+
+To create a New uerror 
 
 ~~~go 
+
+err := uerrors.New("pkg: invalid token", "Please renew your API token")
 ~~~ 
+
+
+To create an uerror with values available only at run time: 
+
+~~~go 
+
+err := uerrors.FromErrors(fmt.Errorf("pkg: txnid=%s, resource=%s", txnid,resource), 
+                          fmt.Errorf("Your API request to %s failed. Please contact support if the issue persists", resource)) 
+~~~ 
+
+
+## Constructing an user friendly response: 
+
+~~~go
+package main
+
+import (
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+
+	"github.com/joshi4/uerrors"
+)
+
+func main() {
+	http.HandleFunc("/feature", serveFeature)
+	http.HandleFunc("/", serveIndex)
+	http.ListenAndServe(":6060", nil)
+}
+
+func serveIndex(w http.ResponseWriter, req *http.Request) {
+	uerr := uerrors.New("example: redirect failed", "Please visit http://localhost:6060/feature if you aren't redirected automatically")
+	log.Println(uerr.Error())
+	io.WriteString(w, uerr.UserError())
+}
+
+func serveFeature(w http.ResponseWriter, req *http.Request) {
+	path := req.URL.Path
+	uerr := uerrors.FromErrors(fmt.Errorf("example: error=true, endpoint=%s", path),
+		fmt.Errorf("Please visit %s a little later", path))
+	log.Println(uerr.Error())
+	io.WriteString(w, uerr.UserError())
+}
+~~~
